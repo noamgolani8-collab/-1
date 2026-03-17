@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>המילים הראשונות שלי - חגיגת הצלחה</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background-color: #ffffff;
+            font-family: sans-serif; overflow: hidden; touch-action: none;
+            display: flex; flex-direction: column; align-items: center; height: 100vh;
+        }
+
+        /* תפריט ניווט */
+        #nav-menu {
+            position: absolute; top: 0; width: 100%; display: flex; justify-content: center;
+            gap: 15px; padding: 15px; background: #fcfcfc; border-bottom: 1px solid #f0f0f0; z-index: 1000;
+        }
+        .nav-btn { padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 25px; cursor: pointer; font-size: 16px; }
+        .nav-btn.active { background: #4CAF50; color: white; border-color: #4CAF50; }
+
+        /* פס התקדמות */
+        #progress-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 12px; background-color: #f0f0f0; z-index: 1001; }
+        #progress-bar { width: 0%; height: 100%; background-color: #4CAF50; transition: width 0.5s ease; }
+
+        /* אזור המשחק */
+        #game-stage { flex-grow: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        #targets-container { display: flex; gap: 50px; margin-bottom: 220px; }
+        .target-box {
+            width: 220px; height: 220px; border: 3px solid #eeeeee; border-radius: 35px;
+            display: flex; align-items: center; justify-content: center; background-color: #fafafa;
+            position: relative; overflow: hidden;
+        }
+        .target-img { width: 80%; height: 80%; object-fit: contain; }
+        
+        /* בשלב ב - התמונות בולטות */
+        body.mode-2 .target-img { opacity: 1 !important; filter: none !important; }
+
+        #draggable-item { width: 180px; height: 180px; cursor: grab; position: absolute; z-index: 100; touch-action: none; }
+        #draggable-item img { width: 100%; height: 100%; object-fit: contain; }
+
+        /* אפקט הצלחה ויזואלי (כל חזרה) */
+        @keyframes successPulse {
+            0% { box-shadow: 0 0 0 0px rgba(76, 175, 80, 0.7); border-color: #4CAF50; }
+            100% { box-shadow: 0 0 0 30px rgba(76, 175, 80, 0); border-color: #eeeeee; }
+        }
+        .success-flash { animation: successPulse 0.8s ease-out; }
+
+        /* מסך סיום */
+        #finish-screen {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.95); z-index: 2000; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        /* קונפטי */
+        .confetti { position: absolute; width: 10px; height: 10px; opacity: 0.8; border-radius: 50%; animation: fall 3s linear infinite; }
+        @keyframes fall {
+            0% { transform: translateY(-100vh) rotate(0deg); }
+            100% { transform: translateY(100vh) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="nav-menu">
+        <button id="btn-mode1" class="nav-btn active" onclick="setMode(1)">שלב א' (1:1)</button>
+        <button id="btn-mode2" class="nav-btn" onclick="setMode(2)">שלב ב' (בחירה)</button>
+    </div>
+
+    <div id="game-stage">
+        <div id="targets-container"></div>
+        <div id="draggable-item">
+            <img id="source-img" src="" alt="">
+        </div>
+    </div>
+
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+
+    <div id="finish-screen">
+        <h1 style="font-size: 4rem; color: #4CAF50; margin-bottom: 10px;">כל הכבוד!</h1>
+        <p style="font-size: 2rem; color: #666;">סיימת את המשימה בהצלחה</p>
+        <button class="nav-btn" onclick="location.reload()" style="margin-top: 30px; padding: 15px 40px; font-size: 1.2rem;">שחק שוב</button>
+    </div>
+
+    <audio id="success-sound" src="success.mp3" preload="auto"></audio>
+
+    <script>
+        const assets = [
+            { id: 'bear', img: 'bear.jpg' }, { id: 'ball', img: 'ball.jpg' },
+            { id: 'car', img: 'car.jpg' }, { id: 'banana', img: 'banana.jpg' },
+            { id: 'doll', img: 'doll.jpg' }, { id: 'bottle', img: 'bottle.jpg' }
+        ];
+
+        let gameMode = 1; 
+        let successCount = 0;
+        const TARGET_GOAL = 10;
+        let currentItem;
+        
+        const targetsContainer = document.getElementById('targets-container');
+        const draggable = document.getElementById('draggable-item');
+        const sourceImg = document.getElementById('source-img');
+        const progressBar = document.getElementById('progress-bar');
+        const successSound = document.getElementById('success-sound');
+
+        function setMode(mode) {
+            gameMode = mode;
+            document.body.className = (mode === 2) ? 'mode-2' : '';
+            resetGame();
+            document.getElementById('btn-mode1').classList.toggle('active', mode === 1);
+            document.getElementById('btn-mode2').classList.toggle('active', mode === 2);
+            initLevel();
+        }
+
+        function resetGame() {
+            successCount = 0;
+            updateProgressBar();
+            document.getElementById('finish-screen').style.display = 'none';
+        }
+
+        function updateProgressBar() {
+            progressBar.style.width = (successCount / TARGET_GOAL) * 100 + '%';
+        }
+
+        function initLevel() {
+            targetsContainer.innerHTML = '';
+            const shuffled = [...assets].sort(() => 0.5 - Math.random());
+            currentItem = shuffled[0];
+
+            if (gameMode === 1) {
+                createTarget(currentItem);
+            } else {
+                const otherItem = shuffled[1];
+                const pair = [currentItem, otherItem].sort(() => 0.5 - Math.random());
+                pair.forEach(item => createTarget(item));
+            }
+            sourceImg.src = currentItem.img;
+            resetDraggable();
+        }
+
+        function createTarget(item) {
+            const box = document.createElement('div');
+            box.className = 'target-box';
+            box.dataset.id = item.id;
+            box.innerHTML = `<img src="${item.img}" class="target-img">`;
+            targetsContainer.appendChild(box);
+        }
+
+        function resetDraggable() {
+            draggable.style.display = "block";
+            draggable.style.transition = "none";
+            draggable.style.left = (window.innerWidth / 2 - 90) + "px";
+            draggable.style.top = (window.innerHeight * 0.72) + "px";
+        }
+
+        // ניהול גרירה
+        let isDragging = false;
+        let startPos = { x: 0, y: 0 };
+
+        const onStart = (e) => {
+            isDragging = true;
+            const evt = e.touches ? e.touches[0] : e;
+            startPos.x = evt.clientX - draggable.offsetLeft;
+            startPos.y = evt.clientY - draggable.offsetTop;
+            draggable.style.transition = "none";
+        };
+        const onMove = (e) => {
+            if (!isDragging) return;
+            const evt = e.touches ? e.touches[0] : e;
+            draggable.style.left = (evt.clientX - startPos.x) + "px";
+            draggable.style.top = (evt.clientY - startPos.y) + "px";
+        };
+        const onEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            checkMatch();
+        };
+
+        draggable.addEventListener('mousedown', onStart);
+        draggable.addEventListener('touchstart', onStart, {passive: false});
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove, {passive: false});
+        window.addEventListener('mouseup', onEnd);
+        window.addEventListener('touchend', onEnd);
+
+        function checkMatch() {
+            const boxes = document.querySelectorAll('.target-box');
+            let matched = false;
+
+            boxes.forEach(box => {
+                const bRect = box.getBoundingClientRect();
+                const dRect = draggable.getBoundingClientRect();
+                const dist = Math.hypot(
+                    (bRect.left + bRect.width/2) - (dRect.left + dRect.width/2),
+                    (bRect.top + bRect.height/2) - (dRect.top + dRect.height/2)
+                );
+
+                if (dist < 140 && box.dataset.id === currentItem.id) {
+                    onSuccess(box);
+                    matched = true;
+                }
+            });
+            if (!matched) {
+                draggable.style.transition = "all 0.4s ease";
+                resetDraggable();
+            }
+        }
+
+        function onSuccess(box) {
+            successSound.currentTime = 0;
+            successSound.play().catch(() => {});
+
+            // אפקטים של הצלחה
+            box.classList.add('success-flash');
+            draggable.style.transition = "all 0.2s ease";
+            draggable.style.left = box.getBoundingClientRect().left + 20 + 'px';
+            draggable.style.top = box.getBoundingClientRect().top + 20 + 'px';
+            setTimeout(() => draggable.style.display = "none", 200);
+
+            successCount++;
+            updateProgressBar();
+
+            if (successCount >= TARGET_GOAL) {
+                setTimeout(showFinishScreen, 1000);
+            } else {
+                setTimeout(() => {
+                    box.classList.remove('success-flash');
+                    initLevel();
+                }, 1600);
+            }
+        }
+
+        function showFinishScreen() {
+            document.getElementById('finish-screen').style.display = 'flex';
+            createConfetti();
+        }
+
+        function createConfetti() {
+            const colors = ['#4CAF50', '#FFD700', '#2196F3', '#FF5722', '#9C27B0'];
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                document.getElementById('finish-screen').appendChild(confetti);
+            }
+        }
+
+        window.onresize = resetDraggable;
+        initLevel();
+    </script>
+</body>
+</html>
