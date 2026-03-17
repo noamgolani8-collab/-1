@@ -1,1 +1,6 @@
-# -1
+# -1![ball](https://github.com/user-attachments/assets/db636374-fae9-4a53-ad8f-33aa3ee17e2d)
+![banana](https://github.com/user-attachments/assets/b0422cb2-63b4-4142-bb36-d364f09e65a5)[index.html](https://github.com/user-attachments/files/26052165/index.html)
+![doll](https://github.com/user-attachments/assets/2ed982d0-8726-45d4-914f-0890ddb9e491)
+![car](https://github.com/user-attachments/assets/d64b52ab-3556-4d4d-ad4e-f5dbe9dae074)
+![bottle](https://github.com/user-attachments/assets/c0bf70d2-b272-495a-9128-34121fc4a6e3)
+![bear](https://github.com/user-attachments/assets/dbb66ef4-f255-468b-bd11-dac6f01335f1)
